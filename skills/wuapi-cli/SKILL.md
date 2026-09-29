@@ -56,13 +56,13 @@ npx @wuapidev/cli logout acme               # forget one profile; --all forgets 
 ## Link a number and send a test
 
 ```sh
-npx @wuapidev/cli link --phone +584121234567 --no-wait --json  # creates an invitation: prints {invitationId, url, expiresAt} and opens the url in the browser
-npx @wuapidev/cli wait <invitationId>                            # blocks until the person linked the number and it is ready
-npx @wuapidev/cli send +584121234567 "Hello from wuapi" --wait   # queues the message, waits until it is sent or delivered
+npx @wuapidev/cli link --no-wait --json   # creates an invitation: prints {invitationId, url, expiresAt} and opens the url in the browser
+npx @wuapidev/cli wait <invitationId> --json                     # blocks until the number is linked and ready; returns {accountId, phone}
+npx @wuapidev/cli send <phone> "Hello from wuapi" --account <accountId> --wait   # a test to their own number
 ```
 
 - `link` creates an invitation, a link valid for 1 day. Give the user the `url` and tell them to open it and link with the QR code or the pairing code shown there. You never see or relay a pairing code or QR code: the page shows it to them.
-- `--phone` prefills the page and sets the proxy location to the phone's country and its largest city; pass `--country VE --city caracas` to choose. Without either, the user picks the location on the page. Details: the `link-account` skill.
+- Do not ask the user for their number: the page asks for what it needs, and `wait` returns the linked `phone`. `--phone` (optional) prefills the page and sets the proxy location to the phone's country and its largest city; pass `--country VE --city caracas` to choose. Without either, the user picks the location on the page. Details: the `link-account` skill.
 - With `--no-wait`, `link` returns at once, so the link reaches the user before the agent blocks on `wait`. Without it, `link` prints the link and waits itself.
 - `wait` takes an invitation id or an account id. It fails with `invitation_failed` (with the reason), `invitation_expired` or `invitation_cancelled`: run `link` again for a new link.
 - `link --here` is the old in-terminal flow (a QR code drawn in the terminal, or a pairing code with `--phone`), for a person at the terminal. Agents should not use it.
