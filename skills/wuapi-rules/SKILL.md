@@ -36,6 +36,7 @@ One word per concept, the same in paths, fields, events, docs and SDK:
 
 - Base URL `https://api.wuapi.dev`. Every request: `Authorization: Bearer wu_live_...`.
 - Read the key from the `WUAPI_API_KEY` environment variable. Never hard-code it, log it or commit it. Keys are shown in full only when created (the dashboard owner can reveal them again).
+- No key yet? Do not ask the user to paste one in chat: run `npx wuapi login --env`. They approve in the browser and the key lands in `./.env` and the CLI's login. See the `wuapi-cli` skill.
 - `GET /v1/me` returns the `auth_context`: `organization`, `apiKey` (`projectId` is set for a project key) and `project`, the scope of the request.
 
 ```ts
@@ -196,6 +197,7 @@ Every delivery carries `Wuapi-Signature: t=<unix seconds>,v1=<hex>`, where `v1` 
 
 | Skill | Use it for |
 |---|---|
+| `wuapi-cli` | Logging in without handling keys, linking a number and sending a test from the terminal, calling any API method from a shell, setting up the MCP server |
 | `link-account` | Connecting a number: QR code, pairing code, waiting for `ready`, reconnecting, logging out |
 | `send-message` | Every send type and option, replies, mentions, polls, calendar events, edits, reactions, stories and channel posts |
 | `receive-webhooks` | Webhook endpoints, signature verification, the event catalog, retries, history sync |
