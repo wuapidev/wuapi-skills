@@ -1,0 +1,67 @@
+name: Validate skills
+
+on:
+  push:
+    branches: [main]
+    paths: ["skills/**", ".claude-plugin/**"]
+  pull_request:
+    branches: [main]
+    paths: ["skills/**", ".claude-plugin/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate JSON configs
+        run: |
+          for f in .claude-plugin/*.json; do
+            echo "  Checking $f"
+            node -e "JSON.parse(require('fs').readFileSync('$f', 'utf8'))" || exit 1
+          done
+          echo "All JSON files valid."
+
+      - name: Validate SKILL.md frontmatter
+        # Every skills/<dir>/SKILL.md opens with a YAML frontmatter block whose
+        # `name` equals <dir> and whose `description` is not empty.
+        run: |
+          node <<'JS'
+          const fs = require("fs")
+          const path = require("path")
+          const dirs = fs.readdirSync("skills", { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+          let errors = 0
+          const fail = (file, msg) => { console.log(`    ERROR ${file}: ${msg}`); errors++ }
+          if (dirs.length === 0) fail("skills", "no skill directories")
+          for (const dir of dirs) {
+            const file = path.join("skills", dir, "SKILL.md")
+            console.log(`  Checking ${file}`)
+            if (!fs.existsSync(file)) { fail(file, "missing"); continue }
+            const text = fs.readFileSync(file, "utf8")
+            const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/)
+            if (!m) { fail(file, "missing YAML frontmatter delimited by ---"); continue }
+            const fields = {}
+            for (const line of m[1].split(/\r?\n/)) {
+              const kv = line.match(/^([A-Za-z_-]+):\s*(.*)$/)
+              if (kv) fields[kv[1]] = kv[2].trim().replace(/^["']|["']$/g, "")
+            }
+            if (!fields.name) fail(file, "missing 'name'")
+            else if (fields.name !== dir) fail(file, `'name' is "${fields.name}", expected "${dir}"`)
+            if (!fields.description) fail(file, "missing or empty 'description'")
+          }
+          if (errors > 0) { console.log(`Found ${errors} error(s)`); process.exit(1) }
+          console.log("All SKILL.md files valid.")
+          JS

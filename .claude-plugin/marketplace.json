@@ -1,0 +1,6 @@
+{
+  "name": "wuapi-marketplace",
+  "owner": { "name": "wuapi" },
+  "metadata": { "description": "wuapi skills for AI coding agents", "version": "1.0.0" },
+  "plugins": [{ "name": "wuapi-skills", "source": "./" }]
+}

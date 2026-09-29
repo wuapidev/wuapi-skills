@@ -1,0 +1,10 @@
+{
+  "name": "wuapi-skills",
+  "version": "1.0.0",
+  "description": "Agent skills for wuapi, a WhatsApp API for developers: link numbers by QR or pairing code, send and receive over REST and signed webhooks, manage chats, groups and channels, and run a platform with one project per customer.",
+  "homepage": "https://wuapi.dev/docs",
+  "repository": "https://github.com/wuapidev/wuapi-skills",
+  "author": { "name": "wuapi" },
+  "license": "Apache-2.0",
+  "keywords": ["whatsapp", "whatsapp-api", "messaging", "webhooks", "sdk"]
+}
