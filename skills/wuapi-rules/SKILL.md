@@ -36,7 +36,7 @@ One word per concept, the same in paths, fields, events, docs and SDK:
 
 - Base URL `https://api.wuapi.dev`. Every request: `Authorization: Bearer wu_live_...`.
 - Read the key from the `WUAPI_API_KEY` environment variable. Never hard-code it, log it or commit it. Keys are shown in full only when created (the dashboard owner can reveal them again).
-- No key yet? Do not ask the user to paste one in chat: run `npx @wuapidev/cli login --env`. They approve in the browser and the key lands in `./.env` and the CLI's login. See the `wuapi-cli` skill.
+- No key yet? Do not ask the user to paste one in chat: run `npx @wuapidev/cli login`. They approve in the browser and the key stays in the CLI's own storage, never in the project or the chat. Run the project's code with `npx @wuapidev/cli run -- <command>`, which puts `WUAPI_API_KEY` in that process's environment only. Never read, print or write the key yourself. See the `wuapi-cli` skill.
 - `GET /v1/me` returns the `auth_context`: `organization`, `apiKey` (`projectId` is set for a project key) and `project`, the scope of the request.
 
 ```ts
