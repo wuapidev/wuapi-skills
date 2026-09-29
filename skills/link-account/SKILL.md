@@ -9,7 +9,7 @@ An **account** is one WhatsApp number linked to wuapi as a linked device, like W
 
 An organization without a paid subscription is on the Free plan: 1 number, 2,000 messages and 0.5 GB of proxy traffic a month, no card. Its one account works fully (sends, webhooks, every call); a second answers `402 upgrade_required` (`details.maxAccounts`, `details.upgradeUrl`, and `details.accountId` when the first is still linking) until the organization upgrades in Billing. On Free an account that has not linked within 15 minutes stops (`disconnectReason: link_timeout`); reconnect for a new code. At a monthly Free limit the account pauses (`disconnectReason: free_limit_reached`, the device stays linked) and reconnects on its own when the month ends (UTC) or on upgrade. In a project scope the account lands in that project; `403 project_limit_reached` when the project is at `maxAccounts`, `403 project_suspended` when it is suspended.
 
-To link your own number once, from a terminal or an agent's shell, you do not need code: `npx wuapi link --phone +E164` (see the `wuapi-cli` skill). The rest of this skill is for code that links numbers.
+To link your own number once, from a terminal or an agent's shell, you do not need code: `npx @wuapidev/cli link --phone +E164` (see the `wuapi-cli` skill). The rest of this skill is for code that links numbers.
 
 If someone else (your customer) must link their own number, do not build this flow: send them an invitation, a hosted page that does it. See the `projects-and-invitations` skill.
 

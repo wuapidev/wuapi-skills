@@ -19,7 +19,7 @@ In Claude Code you can also install them as a plugin:
 | Skill | Covers |
 |---|---|
 | `wuapi-rules` | Always loaded. What wuapi is and is not, auth, projects, errors, pagination, idempotency, pacing, webhook signing. |
-| `wuapi-cli` | Log in with `npx wuapi login` (no key to copy), link a number and send a test from the terminal, call any API method, set up the MCP server. |
+| `wuapi-cli` | Log in with `npx @wuapidev/cli login` (no key to copy), link a number and send a test from the terminal, call any API method, set up the MCP server. |
 | `link-account` | Link a number by QR or pairing code, wait for ready, pick the exit country, reconnect or log out. |
 | `send-message` | Every send type and option, replies, mentions, polls, events, edits, reactions, Status and channel posts. |
 | `receive-webhooks` | Endpoints, signature verification, the full event catalog, retries and history sync. |
