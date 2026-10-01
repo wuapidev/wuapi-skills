@@ -202,5 +202,5 @@ Every delivery carries `Wuapi-Signature: t=<unix seconds>,v1=<hex>`, where `v1` 
 | `send-message` | Every send type and option, replies, mentions, polls, calendar events, edits, reactions, stories and channel posts |
 | `receive-webhooks` | Webhook endpoints, signature verification, the event catalog, retries, history sync |
 | `groups-and-channels` | Groups, communities, join requests, invite links, channels |
-| `chats-contacts-profile` | Chat actions, read receipts, labels, contacts, blocking, profile, privacy, calls |
+| `chats-contacts-profile` | Listing chats and their state, chat actions, read receipts, labels, contacts, blocking, profile, privacy, calls |
 | `projects-and-invitations` | Building a platform: projects, project keys, per-project webhook endpoints and usage, invitations, branding |

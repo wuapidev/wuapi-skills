@@ -24,7 +24,7 @@ In Claude Code you can also install them as a plugin:
 | `send-message` | Every send type and option, replies, mentions, polls, events, edits, reactions, Status and channel posts. |
 | `receive-webhooks` | Endpoints, signature verification, the full event catalog, retries and history sync. |
 | `groups-and-channels` | Groups, communities, join requests, invite links and channels. |
-| `chats-contacts-profile` | Chat actions, read receipts, labels, contacts, blocklist, profile, privacy and calls. |
+| `chats-contacts-profile` | Listing chats and their state, chat actions, read receipts, labels, contacts, blocklist, profile, privacy and calls. |
 | `projects-and-invitations` | A platform on wuapi: projects, project keys, per-project webhooks and usage, invitations, branding. |
 
 Docs: [wuapi.dev/docs](https://wuapi.dev/docs). The whole reference as one Markdown file for any agent: [wuapi.dev/llms-full.txt](https://wuapi.dev/llms-full.txt).

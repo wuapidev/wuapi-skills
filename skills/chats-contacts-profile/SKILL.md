@@ -1,13 +1,25 @@
 ---
 name: chats-contacts-profile
-description: Chat state, contacts, the account's own profile and calls in wuapi. Use when writing code that sends read receipts, shows typing, archives, pins, mutes, marks or deletes chats, sets disappearing timers, uses WhatsApp Business labels, checks which numbers have WhatsApp, looks up contacts, pictures or business profiles, follows a contact's presence, blocks or unblocks, changes the account's name, about, picture or privacy settings, resolves contact links, or sees and rejects incoming calls.
+description: Chats, contacts, the account's own profile and calls in wuapi. Use when writing code that lists an account's chats or reads their unread, pinned, archived or muted state, sends read receipts, shows typing, archives, pins, mutes, marks or deletes chats, sets disappearing timers, uses WhatsApp Business labels, checks which numbers have WhatsApp, looks up contacts, pictures or business profiles, follows a contact's presence, blocks or unblocks, changes the account's name, about, picture or privacy settings, resolves contact links, or sees and rejects incoming calls.
 ---
 
 # Chats, contacts, profile and calls
 
-Everything here takes the `accountId` first and runs live against WhatsApp, so the account must be `ready` (else `409 account_not_ready`). A `chatId` is a contact id (E.164 like `+584241112233`, digits, or `lid:<digits>`) or a group id (`...@g.us`); a `contactId` is a contact id. Changes sync to the phone and every linked device, as if made there. Reads (check, lookup, picture, resolve) keep working for a suspended project; writes answer `403 project_suspended`. Opposites are two methods, never a boolean: `archive` / `unarchive`, `pin` / `unpin`, `mute` / `unmute`, `block` / `unblock`.
+Everything here takes the `accountId` first and, except listing and reading chats, runs live against WhatsApp, so the account must be `ready` (else `409 account_not_ready`). A `chatId` is a contact id (E.164 like `+584241112233`, digits, or `lid:<digits>`) or a group id (`...@g.us`); a `contactId` is a contact id. Changes sync to the phone and every linked device, as if made there. Reads (check, lookup, picture, resolve) keep working for a suspended project; writes answer `403 project_suspended`. Opposites are two methods, never a boolean: `archive` / `unarchive`, `pin` / `unpin`, `mute` / `unmute`, `block` / `unblock`.
 
 ## Chats
+
+`chats.list` returns the chats wuapi stored a message of, the one with the newest message first, and needs no connection. Each `chat` has `id` (the same value as `chatId` on its messages), `type` (`direct`, `group`, `channel`), `name` (`savedName` from the phone's address book, else the group name or the contact's `profileName`), `username`, `lastMessage` (a full `message`), `lastMessageAt`, and WhatsApp's state: `unread`, `unreadCount`, `pinned`, `archived`, `muted`, `muteExpiresAt`. That state is `null` until wuapi observes it: it learns it from changes as they happen (the API, the phone, another device), not from the sync after linking. Treat `null` as unknown, never as `false`.
+
+```ts
+for await (const chat of wuapi.chats.list(accountId, { unread: true })) { // also archived, type, q (search), limit
+  console.log(chat.name ?? chat.id, chat.unreadCount, chat.lastMessage?.text)
+}
+const one = await wuapi.chats.get(accountId, "+584241112233") // 404 not_found when wuapi holds no message of it
+const thread = wuapi.messages.list({ accountId, chatId: one.id }) // the conversation, newest first
+```
+
+`archived: false` and `unread: false` include the chats whose state is `null`. With `q` (the name, the number, the username or words of recent messages) results come best match first instead of by date.
 
 ```ts
 import { Wuapi } from "@wuapidev/sdk"
@@ -30,6 +42,8 @@ console.log(read.messageCount)
 
 | SDK | REST (under `/v1/accounts/{accountId}`) |
 |---|---|
+| `chats.list(accountId, { archived?, unread?, type?, q?, limit? })` | `GET /chats`, a list of `chat` |
+| `chats.get(accountId, chatId)` | `GET /chats/{chatId}`, a `chat` |
 | `chats.sendReadReceipts(accountId, chatId, { messageIds? })` | `POST /chats/{chatId}/read`, returns a `chat_read` `{accountId, chatId, messageCount}` |
 | `chats.sendPresence(accountId, chatId, state)` | `POST /chats/{chatId}/presence` `{state}` |
 | `chats.markRead` / `markUnread` | `POST /chats/{chatId}/mark-read`, `/mark-unread` |
@@ -39,7 +53,7 @@ console.log(read.messageCount)
 | `chats.setDisappearingTimer(accountId, chatId, durationSeconds)` | `PUT /chats/{chatId}/disappearing-timer` `{durationSeconds}` |
 | `accounts.setDefaultDisappearingTimer(accountId, durationSeconds)` | `PUT /disappearing-timer` (the default for new chats) |
 
-Changes made on the phone arrive as `chat.updated` (`data.object.change`: `archive`, `pin`, `mute`, `read`, `delete`, `clear`, `star`). Typing in a chat arrives as `chat.presence_updated`.
+Each change shows in the chat's state (`chats.get`) at once. Changes made on the phone arrive as `chat.updated` (`data.object.change`: `archive`, `pin`, `mute`, `read`, `delete`, `clear`, `star`). Typing in a chat arrives as `chat.presence_updated`.
 
 ## Labels (WhatsApp Business only)
 
