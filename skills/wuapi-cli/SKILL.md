@@ -59,6 +59,7 @@ npx @wuapidev/cli logout acme               # forget one profile; --all forgets 
 npx @wuapidev/cli link --no-wait --json   # creates an invitation: prints {invitationId, url, expiresAt} and opens the url in the browser
 npx @wuapidev/cli wait <invitationId> --json                     # blocks until the number is linked and ready; returns {accountId, phone}
 npx @wuapidev/cli send <phone> "Hello from wuapi" --account <accountId> --wait   # a test to their own number
+npx @wuapidev/cli send <phone> "Caption" --file ./photo.jpg --account <accountId>  # a local file (up to 100 MB); --type voice for an Ogg/Opus voice note
 ```
 
 - `link` creates an invitation, a link valid for 1 day. Give the user the `url` and tell them to open it and link with the QR code or the pairing code shown there. You never see or relay a pairing code or QR code: the page shows it to them.

@@ -36,7 +36,7 @@ curl -X POST https://api.wuapi.dev/v1/messages \
 | `to` | required; a contact (E.164 `+584241112233`, digits, `lid:<digits>`, or the `@username` of a contact the account already chats with, else `400 username_not_supported`), a group (`...@g.us`) or a channel (`...@newsletter`, admins only) |
 | `type` | `text` (default), `image`, `video`, `audio`, `voice`, `document`, `sticker`, `location`, `contact`, `contacts`, `poll`, `calendar_event`; a channel takes `text`, `image`, `video`, `document` |
 | `text` | required for `text`, up to 4,096 characters; the caption for media |
-| `media` | required for media types: `{url, mimeType?, filename?, gifPlayback?}`; `url` must be HTTPS and is fetched by our servers; a missing `mimeType` is guessed from the URL |
+| `media` | required for media types: `{url, mimeType?, filename?, gifPlayback?}`, or `{uploadId, ...}` for a file you uploaded (see "Sending a file you have"); `url` must be HTTPS and is fetched by our servers; a missing `mimeType` is guessed from the URL, or is the upload's |
 | `location` | `{latitude, longitude, name?, address?}` |
 | `contact` | `{name, phone}` |
 | `contacts` | 2 to 20 `{name, phone}` cards in one message |
@@ -54,6 +54,47 @@ curl -X POST https://api.wuapi.dev/v1/messages \
 Idempotency is a header, not a field: `Idempotency-Key` makes a retried send return the first response (`202`, with `Idempotent-Replayed: true`) for 24 hours instead of sending twice. The SDK generates one per call; pass your own as `{ idempotencyKey }` in the last argument.
 
 There are no templates, buttons or list messages: they are features of the official WhatsApp Business Platform, not of wuapi.
+
+## Sending a file you have
+
+`media.url` needs the file at a public URL. A local file, a pasted image or a recorded voice note is uploaded first and sent by its id.
+
+```ts
+import { readFile } from "node:fs/promises"
+
+// A Blob, File, Buffer, ArrayBuffer or stream. Small files go in one request,
+// larger ones (up to 100 MB) straight to storage through an upload URL.
+const upload = await wuapi.uploads.upload(await readFile("photo.jpg"), { mimeType: "image/jpeg" })
+
+await wuapi.messages.send({ accountId, to: "+584241112233", type: "image", media: { uploadId: upload.id }, text: "From my camera roll" })
+
+// A recorded voice note: Ogg/Opus, nothing is transcoded.
+const note = await wuapi.uploads.upload(await readFile("note.ogg"), { mimeType: "audio/ogg; codecs=opus" })
+await wuapi.messages.send({ accountId, to: "+584241112233", type: "voice", media: { uploadId: note.id } })
+```
+
+Without the SDK it is three calls, or one for a file up to 5 MB:
+
+```bash
+# Any size up to 100 MB: create, post the bytes to uploadUrl (no API key), complete.
+curl -X POST https://api.wuapi.dev/v1/uploads -H "Authorization: Bearer $WUAPI_API_KEY" \
+  -H "Content-Type: application/json" -d '{ "mimeType": "image/jpeg", "size": 482113 }'   # → { id, uploadUrl, status: "pending" }
+curl -X POST "$UPLOAD_URL" -H "Content-Type: image/jpeg" --data-binary @photo.jpg          # → { "storageId": "..." }
+curl -X POST https://api.wuapi.dev/v1/uploads/$UPLOAD_ID/complete -H "Authorization: Bearer $WUAPI_API_KEY" \
+  -H "Content-Type: application/json" -d '{ "storageId": "'"$STORAGE_ID"'" }'              # → { status: "ready" }
+
+# Up to 5 MB: the bytes as base64, and the upload comes back ready.
+curl -X POST https://api.wuapi.dev/v1/uploads -H "Authorization: Bearer $WUAPI_API_KEY" \
+  -H "Content-Type: application/json" -d '{ "mimeType": "image/png", "base64": "'"$(base64 -w0 paste.png)"'" }'
+```
+
+- A `ready` upload can be sent any number of times for 24 hours (`expiresAt`), to any account the key reaches. After that it answers `404`: upload again.
+- It belongs to the key's organization (and project): another organization or project gets `404 not_found`, on reads and on sends.
+- Every step is safe to repeat: the same `Idempotency-Key` on `POST /v1/uploads` answers the same upload, completing a `ready` upload with the same `storageId` answers it again, and a send retried with the same key returns the first message.
+- The file posted to `uploadUrl` must be exactly the declared `size`. Over 100 MB (or 5 MB of `base64`) answers `413 media_too_large`.
+- The message's `media.size` is known at once and `media.url` is the stored file, which works until the message is deleted. A sent message keeps its file after the upload expires.
+- Limits: 60 uploads per minute and 5 GB per day per organization (`429 rate_limited`, `Retry-After`).
+- From a terminal: `npx @wuapidev/cli send +584241112233 "Caption" --file photo.jpg` (`--type voice` for a voice note).
 
 ## Every type
 
