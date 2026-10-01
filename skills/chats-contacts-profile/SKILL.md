@@ -1,6 +1,6 @@
 ---
 name: chats-contacts-profile
-description: Chats, contacts, the account's own profile and calls in wuapi. Use when writing code that lists an account's chats or reads their unread, pinned, archived or muted state, sends read receipts, shows typing, archives, pins, mutes, marks or deletes chats, sets disappearing timers, uses WhatsApp Business labels, checks which numbers have WhatsApp, looks up contacts, pictures or business profiles, follows a contact's presence, blocks or unblocks, changes the account's name, about, picture or privacy settings, resolves contact links, or sees and rejects incoming calls.
+description: Chats, contacts, the account's own profile and calls in wuapi. Use when writing code that lists an account's chats or reads their unread, pinned, archived or muted state, sends read receipts, shows typing, archives, pins, mutes, marks or deletes chats, sets disappearing timers, uses WhatsApp Business labels, lists the account's address book, checks which numbers have WhatsApp, looks up contacts, pictures or business profiles, follows a contact's presence, blocks or unblocks, changes the account's name, about, picture or privacy settings, resolves contact links, or sees and rejects incoming calls.
 ---
 
 # Chats, contacts, profile and calls
@@ -9,7 +9,9 @@ Everything here takes the `accountId` first and, except listing and reading chat
 
 ## Chats
 
-`chats.list` returns the chats wuapi stored a message of, the one with the newest message first, and needs no connection. Each `chat` has `id` (the same value as `chatId` on its messages), `type` (`direct`, `group`, `channel`), `name` (`savedName` from the phone's address book, else the group name or the contact's `profileName`), `username`, `lastMessage` (a full `message`), `lastMessageAt`, and WhatsApp's state: `unread`, `unreadCount`, `pinned`, `archived`, `muted`, `muteExpiresAt`. That state is `null` until wuapi observes it: it learns it from changes as they happen (the API, the phone, another device), not from the sync after linking. Treat `null` as unknown, never as `false`.
+`chats.list` returns the chats wuapi stored a message of, the one with the newest message first, and needs no connection. Each `chat` has `id` (the same value as `chatId` on its messages), `type` (`direct`, `group`, `channel`), `name` (`savedName` from the phone's address book, else the group name or the contact's `profileName`), `username`, `pictureId`, `lastMessage` (a full `message`), `lastMessageAt`, and WhatsApp's state: `unread`, `unreadCount`, `pinned`, `archived`, `muted`, `muteExpiresAt`. That state is `null` until wuapi observes it: it learns it from changes as they happen (the API, the phone, another device), not from the sync after linking. Treat `null` as unknown, never as `false`.
+
+`pictureId` is the id of the chat's picture (the contact's profile picture, or the group's). It changes when the picture does, so keep the picture you downloaded and ask `contacts.getPicture(accountId, chat.id)` again only when the id differs; a group id works there too. wuapi learns it from `contact.picture_updated`, picture reads and contact lookups, never while listing, so `null` means unknown, no picture, or hidden from the account (and always for channels).
 
 ```ts
 for await (const chat of wuapi.chats.list(accountId, { unread: true })) { // also archived, type, q (search), limit
@@ -70,7 +72,14 @@ REST: `PUT` and `DELETE /v1/accounts/{accountId}/labels/{labelId}` (`PUT` takes 
 
 ## Contacts
 
+`contacts.list` is the address book of the linked phone as WhatsApp synced it to wuapi, ordered by saved name, and needs no connection. It holds the contacts the phone has a saved name (or a business name) for: it fills in when the number is linked (allow a few minutes) and follows every contact added, renamed or deleted on the phone. People the account only chatted with are not in it; they are in `chats.list`. Each `contact` has `id`, `phone` (`null` when WhatsApp hides the number and only `lid` is known), `lid`, `savedName`, `profileName`, `businessName`, and the `username` and `pictureId` wuapi has seen so far. `about` and `deviceCount` are `null` there: `contacts.lookup` asks WhatsApp for those, and its answer leaves `savedName` and `profileName` `null`.
+
 ```ts
+for await (const contact of wuapi.contacts.list(accountId, { q: "maria" })) { // q searches names, usernames and numbers
+  console.log(contact.savedName, contact.phone ?? contact.lid, contact.pictureId)
+}
+const saved = await wuapi.contacts.get(accountId, "+584241112233") // 404 not_found when the phone has not saved it
+
 // Which numbers have WhatsApp, 1 to 50 per call. Do this before a first contact.
 const checks = await wuapi.contacts.check(accountId, ["+584241112233", "+584141234567"])
 const reachable = checks.filter((c) => c.onWhatsApp).map((c) => c.contactId)
@@ -84,9 +93,11 @@ console.log(reachable, contacts[0]?.about, pic.url, biz.categories)
 
 | SDK | REST (under `/v1/accounts/{accountId}`) |
 |---|---|
+| `contacts.list(accountId, { q?, limit? })` | `GET /contacts`, a list of `contact` |
+| `contacts.get(accountId, contactId)` | `GET /contacts/{contactId}`, a `contact` |
 | `contacts.check(accountId, phones)` | `POST /contacts/check` `{phones}` → list of `contact_check` `{phone, onWhatsApp, contactId, businessName}` |
 | `contacts.lookup(accountId, contactIds)` | `POST /contacts/lookup` `{contactIds}` → list of `contact` |
-| `contacts.getPicture(accountId, contactId, { preview? })` | `GET /contacts/{contactId}/picture` → `picture` `{id, url, preview}` |
+| `contacts.getPicture(accountId, contactId, { preview? })` | `GET /contacts/{contactId}/picture` → `picture` `{id, url, preview}`; `contactId` may be a group id |
 | `contacts.getBusinessProfile(accountId, contactId)` | `GET /contacts/{contactId}/business-profile` (address, email, categories, hours) |
 | `contacts.subscribePresence(accountId, contactId)` | `POST /contacts/{contactId}/subscribe-presence` |
 | `contacts.block` / `unblock` | `POST /contacts/{contactId}/block`, `/unblock` |
