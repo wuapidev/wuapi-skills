@@ -165,6 +165,31 @@ export async function POST(request: Request) {
 - `call.received` carries `startedAt`; `call.ended` carries `endedAt` and `endReason`; `video` is reliable on `call.received` only.
 - REST: `PATCH /v1/accounts/{accountId}` `{rejectCalls, rejectCallsMessage}` and `POST /v1/accounts/{accountId}/calls/{callId}/reject` `{from}`.
 
+## Favorite stickers
+
+The star tab of WhatsApp's sticker picker, which WhatsApp syncs between the phone and its linked devices. All under `/v1/accounts/{accountId}`.
+
+| SDK | REST |
+|---|---|
+| `favoriteStickers.list(accountId, { limit?, cursor? })` | `GET /stickers/favorites` → list of `favorite_sticker` `{id, mimeType, animated, lottie, width, height, size, emojis, favoritedAt, media: {url, downloaded}}`, newest first; stored by wuapi, no `ready` account needed |
+| `favoriteStickers.getMedia(accountId, stickerId)` | `GET /stickers/favorites/{stickerId}/media` → `{url, mimeType, size}`; fetches the file from WhatsApp the first time (account `ready`), then serves the stored copy; `410 media_expired` when WhatsApp no longer has it |
+| `favoriteStickers.add(accountId, { messageId })` or `{ uploadId }` | `POST /stickers/favorites` → the `favorite_sticker` (`201`); a sticker message of the account, or a WebP upload (`image/webp`, at most 2 MB) |
+| `favoriteStickers.remove(accountId, stickerId)` | `DELETE /stickers/favorites/{stickerId}` → `204` |
+
+- The list is empty until wuapi's first read of it, a minute or two after a newly linked account is `ready`; `sticker.favorites_updated` says when it changes (`reason` `added`, `removed` or `synced`).
+- `media.downloaded: false`: `media.url` needs the API key and fetches the file on first use. `animated` and `emojis` are `null` until then. Fetch the files a picker shows, not the whole list (60 first downloads per minute per account, shared with message media).
+- Being turned on account by account: until an account has them, the list is empty and `add` / `remove` answer `400 not_supported`.
+- Adding and removing write to WhatsApp (account `ready`), so the phone shows the change. Both are safe to repeat. At most 30 changes per minute per account.
+
+```ts
+const stickers = await wuapi.favoriteStickers.list(accountId).toArray()
+const first = stickers[0]
+if (first && !first.media.downloaded) {
+  const file = await wuapi.favoriteStickers.getMedia(accountId, first.id)
+  console.log(file.url) // a direct URL, no API key needed
+}
+```
+
 ## Extras
 
 `stickerPacks.get(accountId, stickerPackId)` (`GET /v1/accounts/{accountId}/sticker-packs/{stickerPackId}`), `orders.get(accountId, orderId, { token })` for a catalog order a customer sent (`GET /v1/accounts/{accountId}/orders/{orderId}?token=`; the token comes with the order message; amounts are `subtotalCents`, `totalCents` with `currency`), and `bots.list(accountId)` for WhatsApp's AI bot directory (`GET /v1/accounts/{accountId}/bots`).

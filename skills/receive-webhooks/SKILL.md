@@ -137,6 +137,10 @@ Every event has the same envelope. `data.object` is the resource in exactly the 
 | `message.edited` | `message` | edited by either side; `editedAt` set; `previousAttributes.text` |
 | `message.deleted` | `message` | deleted for everyone; content cleared, `deletedAt` set |
 | `message.media_downloaded` | `message` | a received file was stored by a background retry; `media.downloaded` is now `true` |
+| `story.received` | `story` | a contact posted a story (accounts with stories on); `media.downloaded` is `false` until you fetch the file |
+| `story.deleted` | `story` | its author deleted it before it expired; `deletedAt` set, content cleared |
+| `story.viewed` | `story_viewer`: `{accountId, storyId, contactId, viewedAt, reaction, reactedAt}` | a contact saw a story the account posted; once per contact and story |
+| `story.reacted` | `story_viewer` | a contact reacted to a story the account posted, or changed or removed the reaction |
 | `poll.voted` | `poll_vote`: `{accountId, chatId, messageId, voterId, options, votedAt, poll}` | someone voted; `poll` is the poll message with its tally, or `null` |
 | `group.joined` | `group` | the account was added to or created a group |
 | `group.updated` | `group_change`: `{accountId, groupId, actorId, added, removed, promoted, demoted, name, description, locked, announce, changes, changedAt}` | participants, admins, name, description or settings changed; `changes` lists what |
@@ -148,6 +152,7 @@ Every event has the same envelope. `data.object` is the resource in exactly the 
 | `contact.picture_updated` | `picture_change`: `{accountId, chatId, pictureId, removed, changedBy, changedAt}` | a contact or group changed its picture |
 | `contact.updated` | `contact` with `about` | a contact changed their about text |
 | `blocklist.updated` | `blocklist_change`: `{accountId, changes: [{contactId, action}], refetch}` | the blocklist changed; with `refetch: true`, read it again |
+| `sticker.favorites_updated` | `sticker_favorites_change`: `{accountId, reason, stickerId, sticker, added, removed}` | the account's favorite stickers changed: `added` (with the `sticker`), `removed` (with its `stickerId`) or `synced` (the whole list was read again; counts only, read `GET .../stickers/favorites`) |
 | `label.updated` | `label_change`: `{accountId, kind, labelId, name, color, deleted, chatId, messageId, labeled}` | WhatsApp Business labels: edited, or put on a chat or message |
 | `call.received` | `call`: `{id, accountId, from, video, groupId, endReason, startedAt, endedAt}` | an incoming call |
 | `call.ended` | `call` | a call ended or was rejected; `endReason` says how |
@@ -165,7 +170,7 @@ Full examples for every event: `https://wuapi.dev/llms-full.txt` (section Events
 
 ## Payloads that matter most
 
-- **Inbound message** (`message.received`): `direction` `inbound`, `source` `contact`, `chatId` (the contact id, or the group id when `chatType` is `group`), `from` (the sender's contact id; in groups, the member), `profileName` (the sender's WhatsApp name), `type`, `text`, `media` (`{url, mimeType, filename, size, width, height, durationSeconds, downloaded}`; `size` is bytes; `width`, `height` and `durationSeconds` are `null` for received files today; with `downloaded: true` `url` is the stored file; with `downloaded: false` the file is still on WhatsApp and `url` is `GET /v1/messages/{id}/media`, which needs the API key and downloads it on first use — or call it with `?redirect=false` for a keyless file URL; `url` can be `null`), `location`, `contact`/`contacts`, `poll`, `calendarEvent`, `mentions`, `replyToMessageId` (the quoted wuapi message, when known), `forwarded`, `viewOnce`. Types include `voice` for voice notes and `unknown` for what cannot be parsed.
+- **Inbound message** (`message.received`): `direction` `inbound`, `source` `contact`, `chatId` (the contact id, or the group id when `chatType` is `group`), `from` (the sender's contact id; in groups, the member), `profileName` (the sender's WhatsApp name), `type`, `text`, `media` (`{url, mimeType, filename, size, width, height, durationSeconds, gifPlayback, downloaded}`; `size` is bytes; `width`, `height` and `durationSeconds` are `null` for received files today; `gifPlayback: true` marks a `video` that WhatsApp plays as a GIF; with `downloaded: true` `url` is the stored file; with `downloaded: false` the file is still on WhatsApp and `url` is `GET /v1/messages/{id}/media`, which needs the API key and downloads it on first use — or call it with `?redirect=false` for a keyless file URL; `url` can be `null`), `location`, `contact`/`contacts`, `poll`, `calendarEvent`, `mentions`, `replyToMessageId` (the quoted wuapi message, when known), `forwarded`, `forwardedManyTimes` (WhatsApp's "Forwarded many times": five or more forwards), `viewOnce`. Types include `voice` for voice notes and `unknown` for what cannot be parsed.
 - **Replying**: send with the same `accountId` and `to` set to the inbound `chatId`, optionally `replyToMessageId` set to the inbound message id.
 - **Calls**: `call.received` carries `startedAt`; `call.ended` carries `endedAt` and `endReason`. Reject with the call `id` and `from` (see `chats-contacts-profile`).
 - **Polls**: a vote on a poll the account never saw arrives with an empty `options` list and `poll: null`.

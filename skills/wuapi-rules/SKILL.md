@@ -12,7 +12,7 @@ wuapi is a **WhatsApp API for developers**, run as an independent service. A cus
 - **Not the WhatsApp Business Platform (Cloud API)** and not affiliated with, endorsed or sponsored by WhatsApp or Meta.
 - **No message templates, buttons or list messages.** Those exist only on the official platform. Do not generate code for them.
 - **No guarantee a number is never restricted.** WhatsApp restricts numbers for what they send and how recipients react. Never write "ban-proof" logic or copy; message people who expect it.
-- Not supported: delete for me (delete for everyone works), answering or placing calls (calls can be seen and rejected), receiving contacts' stories, history on demand, calendar event call links, calendar event RSVPs, and votes on polls the account never saw (they arrive with empty `options`).
+- Not supported: delete for me (delete for everyone works), answering or placing calls (calls can be seen and rejected), changing who sees the account's stories or muting a contact's stories (both can be read), history on demand, calendar event call links, calendar event RSVPs, and votes on polls the account never saw (they arrive with empty `options`).
 
 ## Vocabulary
 
@@ -27,7 +27,7 @@ One word per concept, the same in paths, fields, events, docs and SDK:
 | chat | a conversation: with a contact, a group, a channel, or the account's stories |
 | group, community | a WhatsApp group; a community is a group with `community: true` that links other groups |
 | channel | a WhatsApp channel (one-to-many broadcast) |
-| story | a WhatsApp Status post; "status" only ever means the state of a resource |
+| story | a WhatsApp Status post, by the account or by one of its contacts; "status" only ever means the state of a resource |
 | webhook endpoint, event | the URL that receives events, and the delivered body |
 | QR code, pairing code | the two ways to link a number |
 | proxy location | where an account's residential proxy exits: `{country, city}`, required when creating an account, from `GET /v1/proxy-locations` |
@@ -199,7 +199,7 @@ Every delivery carries `Wuapi-Signature: t=<unix seconds>,v1=<hex>`, where `v1` 
 |---|---|
 | `wuapi-cli` | Logging in without handling keys, linking a number and sending a test from the terminal, calling any API method from a shell, setting up the MCP server |
 | `link-account` | Connecting a number: QR code, pairing code, waiting for `ready`, reconnecting, logging out |
-| `send-message` | Every send type and option, replies, mentions, polls, calendar events, edits, reactions, stories and channel posts |
+| `send-message` | Every send type and option, replies, mentions, polls, calendar events, edits, reactions, stories (posting, reading contacts' stories, viewing, replying) and channel posts |
 | `receive-webhooks` | Webhook endpoints, signature verification, the event catalog, retries, history sync |
 | `groups-and-channels` | Groups, communities, join requests, invite links, channels |
 | `chats-contacts-profile` | Listing chats and their state, chat actions, read receipts, labels, contacts, blocking, profile, privacy, calls |

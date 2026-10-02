@@ -1,6 +1,6 @@
 ---
 name: send-message
-description: Send WhatsApp messages through wuapi and act on sent messages. Use when writing code that sends text, media, voice notes, documents, stickers, locations, contact cards, polls or calendar events; replies, mentions, forwards, view-once or disappearing messages; edits, deletes, stars or reacts to a message; votes in a poll; or posts a story or a channel post. Also covers the queued lifecycle, the Idempotency-Key header, pacing and send errors.
+description: Send WhatsApp messages through wuapi and act on sent messages. Use when writing code that sends text, media, voice notes, documents, stickers, locations, contact cards, polls or calendar events; replies, mentions, view-once or disappearing messages; forwards a received or sent message to other chats; edits, deletes, stars or reacts to a message; votes in a poll; posts a story or a channel post; or reads, views, replies or reacts to a contact's story. Also covers the queued lifecycle, the Idempotency-Key header, pacing and send errors.
 ---
 
 # Send messages
@@ -45,7 +45,7 @@ curl -X POST https://api.wuapi.dev/v1/messages \
 | `replyToMessageId` | a wuapi message id in the same chat to quote; works with every type |
 | `mentions` | contact ids, up to 256 |
 | `mentionAll` | `true` mentions every participant; groups only |
-| `forwarded` | `true` marks it as forwarded |
+| `forwarded` | `true` labels this new message as forwarded (content you supply); to pass on a message you already have, use `messages.forward` (see "Forwarding a message") |
 | `viewOnce` | image, video and audio: the recipient can open it once |
 | `linkPreview` | text only: `{url, title, description?, thumbnailBase64?}`; nothing is fetched, you provide the preview |
 | `disappearingSeconds` | `0`, `86400`, `604800` or `7776000`; match the chat's timer |
@@ -224,6 +224,7 @@ await wuapi.messages.send(
 | `messages.react(id, emoji)` | `POST /v1/messages/{messageId}/react` | `""` removes the reaction; `204` |
 | `messages.star(id)` / `unstar(id)` | `POST /v1/messages/{messageId}/star`, `POST /v1/messages/{messageId}/unstar` | also on the phone; return the message |
 | `messages.vote(id, options)` | `POST /v1/messages/{messageId}/vote` | option names; `[]` retracts; returns the poll with its tally |
+| `messages.forward(id, { to })` | `POST /v1/messages/{messageId}/forward` | forward it to 1 to 5 chats; `202` with a list of one queued message per chat |
 | `messages.addLabel(id, labelId)` / `removeLabel` | `POST /v1/messages/{messageId}/labels`, `DELETE /v1/messages/{messageId}/labels/{labelId}` | WhatsApp Business only |
 
 ```ts
@@ -241,6 +242,27 @@ console.log(voted.poll?.options) // [{ name, voteCount }]
 
 Edits and poll votes are messages to WhatsApp, so they share the send pace. Poll options are checked against the stored poll: an unknown name, a repeated one, or more than `selectableCount` answers `400`. Delete for me does not exist; delete for everyone does.
 
+## Forwarding a message
+
+`messages.forward(id, { to })` passes on a message wuapi stores (received, sent through the API or sent from the phone) to other chats of the same account, the way WhatsApp forwards. You send no content and no file.
+
+```ts
+// messageId: a photo a customer sent. Forward it to a colleague and to the support group.
+const res = await wuapi.messages.forward(messageId, { to: ["+584241112233", "120363041234567890@g.us"] }, { idempotencyKey: `fwd-${messageId}` })
+for (const m of res.items) console.log(m.to, m.id, m.status) // "queued", then message.sent / message.failed per message
+```
+
+- `to`: 1 to 5 chats (WhatsApp's limit per forward), each once: contact ids or group ids. No usernames, channels or `stories`.
+- The answer is a list with one message per chat, in the order of `to`. Each is a message like any other: `forwarded: true`, its own id and events, the same pacing and queue as a send, one sent message each in usage.
+- All or nothing: a refused request queues nothing. A failure for one chat later (`not_on_whatsapp`, `account_offline`) is that message's own `failed` status.
+- Forwardable: text (with its link preview when stored), image, video, GIF, audio, voice note (stays a voice note), document, sticker, location, contact cards; captions kept. The reply quote, mentions and disappearing timer do not travel.
+- Not forwardable (`400 not_forwardable`, `details.reason`): `poll`, `calendar_event`, `reaction`, `view_once`, `deleted`, `not_sent` (an outbound message still `queued`, or `failed`), `unknown`, `empty`, `story` (the id is a contact's story: only stories the account posted, which are messages, can be forwarded; reply to a contact's story with `replyToStoryId`), `media_not_stored` (the file is still only on WhatsApp and the account cannot forward it from there yet: call `GET /v1/messages/{messageId}/media` once, then forward).
+- Media is not uploaded again: the forward names the file WhatsApp already holds. wuapi uploads its stored copy only when WhatsApp no longer serves the original, and answers `410 media_expired` when neither has the file. A stored file is shared between the source and its forwards (same `media.url`), and stays until all of them are deleted.
+- `message.forwardedManyTimes` is WhatsApp's "Forwarded many times" (five or more forwards). Such a message goes to one chat per request: more answers `400 invalid_request` with `details.maxChats: 1`.
+- Always send an `Idempotency-Key`: a repeat returns the messages already queued and queues only the missing ones, so no chat gets the forward twice.
+
+`forwarded: true` on `messages.send` is a different thing: it labels new content as forwarded.
+
 ## Stories and channel posts
 
 ```ts
@@ -252,7 +274,56 @@ await wuapi.stories.create(accountId, { type: "image", text: "New stock", media:
 await wuapi.messages.send({ accountId, to: "120363198765432109@newsletter", text: "Doors open at 8." })
 ```
 
-REST: `POST /v1/accounts/{accountId}/stories` and `POST /v1/messages`. Both are queued and paced like a send and return `202` with the message. `font` is one of `0`, `1`, `2`, `6`, `7`, `8`, `9`, `10`. Who sees a story follows the account's story privacy. Contacts' own stories are not received.
+REST: `POST /v1/accounts/{accountId}/stories` and `POST /v1/messages`. Both are queued and paced like a send and return `202` with the message. `font` is one of `0`, `1`, `2`, `6`, `7`, `8`, `9`, `10`. Who sees a story follows the account's story privacy.
+
+## Stories: your own and your contacts'
+
+A story the account posted is its message, and the message id is also its story id:
+
+```ts
+// The account's stories of the last 24 hours, each with its status and view count.
+for await (const story of wuapi.stories.listOwn(accountId)) console.log(story.id, story.status, story.viewCount)
+
+// Who saw one (messageId: the id POST .../stories returned), with their reaction, the latest viewer first.
+for await (const viewer of wuapi.stories.listViewers(accountId, messageId)) console.log(viewer.contactId, viewer.viewedAt, viewer.reaction)
+
+await wuapi.stories.delete(accountId, messageId) // for everyone; fires message.deleted
+```
+
+Once stories are on for an account, the stories its contacts post are stored for 24 hours (`story.received`, `story.deleted`), apart from messages: no chat, no `message.received`, not counted as received.
+
+```ts
+// Grouped by contact, the contact with the newest story first; each group's stories play oldest first.
+for await (const group of wuapi.stories.list(accountId, { unviewed: true })) {
+  for (const story of group.stories) {
+    console.log(group.contactId, story.type, story.text)
+
+    // The file is on demand: this downloads it on first use. It does not mark the story as viewed.
+    if (story.media) console.log((await wuapi.stories.getMedia(accountId, story.id)).url)
+
+    // Tell the author the account saw it. The only call that does: use it when a person opens the story.
+    const seen = await wuapi.stories.view(accountId, story.id)
+    console.log(seen.viewedAt, seen.authorNotified) // false: read receipts are off, so WhatsApp did not tell them
+
+    // React (the heart of the WhatsApp apps), and reply: a message to the author that quotes the story.
+    await wuapi.stories.react(accountId, story.id, { emoji: "💚" })
+    await wuapi.messages.send({ accountId, to: group.contactId, text: "Looks great", replyToStoryId: story.id })
+  }
+}
+```
+
+| SDK | REST | notes |
+|---|---|---|
+| `stories.list(accountId, { contactId?, unviewed? })` | `GET /v1/accounts/{accountId}/stories` | a list of `story_group`; `limit` counts contacts |
+| `stories.listOwn(accountId)` | `GET /v1/accounts/{accountId}/stories/own` | the account's stories of the last 24 hours |
+| `stories.get(accountId, storyId)` | `GET /v1/accounts/{accountId}/stories/{storyId}` | a contact's story answers `404` once it expired |
+| `stories.getMedia(accountId, storyId)` | `GET /v1/accounts/{accountId}/stories/{storyId}/media` | the file's URL; over REST a `302` to it |
+| `stories.view(accountId, storyId)` | `POST /v1/accounts/{accountId}/stories/{storyId}/view` | sends the view receipt once; a story already seen sends nothing |
+| `stories.react(accountId, storyId, { emoji })` | `POST /v1/accounts/{accountId}/stories/{storyId}/react` | `""` removes it; `400 not_supported` when the account's story privacy is "Only share with" or excludes the author |
+| `stories.listViewers(accountId, storyId)` | `GET /v1/accounts/{accountId}/stories/{storyId}/viewers` | own stories only |
+| `stories.delete(accountId, storyId)` | `DELETE /v1/accounts/{accountId}/stories/{storyId}` | own stories only |
+
+Never view stories automatically: a view shows the account in the contact's viewer list, and a number that opens every story the moment it arrives does not look like a person. Listing, reading and downloading are silent. WhatsApp ties views to read receipts: with the account's `readReceipts` privacy `none`, views are not reported either way. A message that replies to a story has `replyToStoryId` set.
 
 ## Typing indicator
 
