@@ -3,10 +3,10 @@ name: Validate skills
 on:
   push:
     branches: [main]
-    paths: ["skills/**", ".claude-plugin/**"]
+    paths: ["skills/**", ".claude-plugin/**", "sdk.json", "scripts/**"]
   pull_request:
     branches: [main]
-    paths: ["skills/**", ".claude-plugin/**"]
+    paths: ["skills/**", ".claude-plugin/**", "sdk.json", "scripts/**"]
 
 permissions:
   contents: read
@@ -34,6 +34,11 @@ jobs:
             node -e "JSON.parse(require('fs').readFileSync('$f', 'utf8'))" || exit 1
           done
           echo "All JSON files valid."
+
+      - name: Validate the version
+        # One version, stated in plugin.json and marketplace.json, and the SDK
+        # versions the skills were written against (sdk.json).
+        run: node scripts/release.mjs check
 
       - name: Validate SKILL.md frontmatter
         # Every skills/<dir>/SKILL.md opens with a YAML frontmatter block whose

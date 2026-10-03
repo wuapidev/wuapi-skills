@@ -17,7 +17,70 @@ Streams delivers the same events as Webhooks, over one long-lived HTTPS request 
 
 Never poll for events. Polling with 2 requests every 4 seconds is 43,200 requests a day against the key's limit of 600 requests a minute, and an event still arrives up to 4 seconds late. A stream connection costs one connect attempt and then no request at all.
 
+## With the SDK
+
+In TypeScript and Rust the SDK is the client. `events.stream` in `@wuapidev/sdk` and in the `wuapi` crate (both from version 0.13) opens the stream, reconnects with the last `id`, waits the `retry` and `Retry-After` times, deduplicates and reports a `reset`. Use it before writing a client by hand.
+
+```ts
+import { StreamError } from "@wuapidev/sdk"
+
+const stream = wuapi.events.stream(
+  { types: ["message.received", "message.read"] },
+  {
+    onStatus: (status) => {
+      // The cursor was too old: read what you missed through REST (GET /v1/messages). The stream goes on live.
+      if (status.type === "reset") console.warn("resync:", status.reason)
+      if (status.type === "reconnecting") console.warn("stream " + status.reason + ", back in " + status.delayMs + " ms")
+    },
+  },
+)
+
+try {
+  for await (const event of stream) {
+    console.log(event.type, event.data.object.id) // typed by the filter
+    // stream.lastEventId is the cursor: pass it as lastEventId to resume after a restart
+  }
+} catch (err) {
+  // Only what waiting cannot fix ends the loop: a bad key, a suspended organization, a wrong filter.
+  if (err instanceof StreamError) console.error(err.kind, err.message)
+  else throw err
+}
+```
+
+```rust
+use wuapi::resources::events::EventsStreamParams;
+use wuapi::types::WebhookEventType;
+use wuapi::{StreamItem, Wuapi};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Wuapi::from_env()?; // reads WUAPI_API_KEY
+    let types = [WebhookEventType::MessageReceived, WebhookEventType::MessageRead];
+    let mut stream = client.events().stream(EventsStreamParams::new().types(types))?;
+    // Only what waiting cannot fix ends the loop: a bad key, a suspended organization, a wrong filter.
+    while let Some(item) = stream.next_item().await {
+        match item? {
+            // event.parse()? types the envelope; event.cursor resumes after a restart
+            StreamItem::Event(event) => println!("{} {}", event.event, event.data),
+            // The cursor was too old: read what you missed through REST. The stream goes on live.
+            StreamItem::Reset { reason } => eprintln!("resync: {reason}"),
+            StreamItem::Reconnecting(waiting) => eprintln!("stream {:?}, back in {:?}", waiting.reason, waiting.delay),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+```
+
+- `types` and `accounts` filter the stream; in TypeScript the event of the loop is typed by `types`.
+- Save the cursor (`stream.lastEventId`, `event.cursor` in Rust) and pass it as `lastEventId` (`last_event_id`) to resume after a restart.
+- A `reset` means events may have been missed: read them through REST. The stream goes on live.
+- A network drop, a `429` and a `5xx` are waited out and never reach your code as errors. What waiting cannot fix ends the loop with a `StreamError`: `unauthorized`, `forbidden`, `invalid_request`, `not_found`, `refused`.
+- Stop it with an `AbortSignal` (`options.signal`) or `stream.close()`; in Rust, `close()` or dropping the stream.
+
 ## Workflow
+
+In any other language, or to know what the SDK does for you, a client follows these rules.
 
 1. Send the key in the `Authorization: Bearer $WUAPI_API_KEY` header. A key in the URL is refused with `401`. The key never goes into front-end code.
 2. Read the response as `text/event-stream`. Every stream starts with `retry: 3000`. An event is a frame with `id` (an opaque cursor), `event` (the type, such as `message.received`) and `data` (one JSON line). A line that starts with a colon is a heartbeat, sent every 15 seconds when nothing else is; it may carry an `id` too.
