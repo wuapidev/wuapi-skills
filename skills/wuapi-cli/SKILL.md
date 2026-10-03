@@ -87,6 +87,15 @@ npx @wuapidev/cli messages send --data @message.json
 - `--json` on any command: JSON on stdout, progress on stderr, and on failure a non-zero exit with `{"error": {"code", "message"}}` using the API's error codes (see `wuapi-rules`).
 - Sends are idempotent: a retried `send` reuses its idempotency key and never sends twice.
 
+## Watch events live
+
+```sh
+npx @wuapidev/cli events stream                      # one JSON event per line until Ctrl-C
+npx @wuapidev/cli events stream --types message.received --count 1
+```
+
+Streams from the terminal: the events of the key's organization as they happen, with no public endpoint. It reconnects by itself with `Last-Event-ID`, prints each event once and sends logs and resets to stderr, so stdout pipes into `jq`. The Free plan allows 3 open stream connections, and this uses one. Writing a client: the `receive-streams` skill.
+
 ## The MCP server
 
 ```sh

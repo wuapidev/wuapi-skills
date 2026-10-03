@@ -1,6 +1,6 @@
 ---
 name: wuapi-rules
-description: Foundational rules for any code that calls wuapi, the WhatsApp API for developers (REST at api.wuapi.dev, npm package `@wuapidev/sdk`). Always load it before writing or reviewing wuapi code; it covers what wuapi is and is not, auth and the WUAPI_API_KEY variable, the naming and identity conventions, projects and the Wuapi-Project header, the error shape and codes, pagination, the Idempotency-Key header, rate limit headers, per-number pacing, webhook signing and where the full docs live.
+description: Foundational rules for any code that calls wuapi, the WhatsApp API for developers (REST at api.wuapi.dev, npm package `@wuapidev/sdk`). Always load it before writing or reviewing wuapi code; it covers what wuapi is and is not, auth and the WUAPI_API_KEY variable, the naming and identity conventions, projects and the Wuapi-Project header, the error shape and codes, pagination, the Idempotency-Key header, rate limit headers, per-number pacing, choosing Webhooks or Streams for receiving events, webhook signing and where the full docs live.
 ---
 
 # wuapi: the rules
@@ -177,6 +177,16 @@ Edits, poll votes and the automatic call-rejection reply share the same pace; st
 
 For the habits that keep a number healthy (warming up a new number, opt-in, first messages without links, what to do after `temporary_ban` or `logged_out`), point the user to `https://wuapi.dev/guides/avoid-restrictions`.
 
+## Webhooks or Streams
+
+Events reach your code one of two ways, the same envelope on both. Choose by what the code has:
+
+- **Webhooks** when the server has a public HTTPS endpoint: wuapi POSTs each event, signed, with retries. Skill `receive-webhooks`.
+- **Streams** when it has none (local development, a desktop or CLI app, a worker behind NAT, an agent): the code opens one request to `https://stream.wuapi.dev/v1/events/stream` with the key in the `Authorization` header and wuapi sends each event as it happens. It resumes with `Last-Event-ID` for 30 minutes and may repeat an event, so deduplicate on the event `id`. The Free plan allows 3 open stream connections. A web app's `EventSource` cannot set the header: go through your backend. Skill `receive-streams`.
+- **REST** for history and for catching up after a `reset` frame: `GET /v1/messages`, `GET /v1/accounts/{accountId}/chats`.
+
+Never poll for events: 2 requests every 4 seconds is 43,200 requests a day against a limit of 600 requests a minute, and an event still arrives late. `npx @wuapidev/cli events stream` prints the events live from a terminal.
+
 ## Webhook signing (summary)
 
 Every delivery carries `Wuapi-Signature: t=<unix seconds>,v1=<hex>`, where `v1` is HMAC-SHA256 of `<t>.<raw body>` keyed with the endpoint secret (`whsec_...`, shown on create and rotate). Verify over the raw body before parsing JSON, in constant time, and reject timestamps older than a few minutes. `verifyWebhook(rawBody, header, secret)` from the SDK does all of it (default tolerance 300 seconds) and returns the typed event: `{id, object: "event", type, createdAt, organizationId, projectId, data: {object}}`. Deliveries retry after 30s, 2m, 10m, 1h and 6h; deduplicate on the event `id`. Full guide: the `receive-webhooks` skill.
@@ -201,6 +211,7 @@ Every delivery carries `Wuapi-Signature: t=<unix seconds>,v1=<hex>`, where `v1` 
 | `link-account` | Connecting a number: QR code, pairing code, waiting for `ready`, reconnecting, logging out |
 | `send-message` | Every send type and option, replies, mentions, polls, calendar events, edits, reactions, stories (posting, reading contacts' stories, viewing, replying) and channel posts |
 | `receive-webhooks` | Webhook endpoints, signature verification, the event catalog, retries, history sync |
+| `receive-streams` | Streams: live events with no public endpoint, resuming with Last-Event-ID, reset, deduplication, limits |
 | `groups-and-channels` | Groups, communities, join requests, invite links, channels |
 | `chats-contacts-profile` | Listing chats and their state, chat actions, read receipts, labels, contacts, blocking, profile, privacy, calls |
 | `projects-and-invitations` | Building a platform: projects, project keys, per-project webhook endpoints and usage, invitations, branding |

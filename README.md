@@ -23,6 +23,7 @@ In Claude Code you can also install them as a plugin:
 | `link-account` | Link a number by QR or pairing code, wait for ready, pick the exit country, reconnect or log out. |
 | `send-message` | Every send type and option, replies, mentions, polls, events, edits, reactions, Status and channel posts. |
 | `receive-webhooks` | Endpoints, signature verification, the full event catalog, retries and history sync. |
+| `receive-streams` | Streams: live events with no public endpoint. Choosing Webhooks or Streams, resuming with `Last-Event-ID`, reset, deduplication, filters and limits. |
 | `groups-and-channels` | Groups, communities, join requests, invite links and channels. |
 | `chats-contacts-profile` | Listing chats and their state, chat actions, read receipts, labels, contacts, blocklist, profile, privacy and calls. |
 | `projects-and-invitations` | A platform on wuapi: projects, project keys, per-project webhooks and usage, invitations, branding. |

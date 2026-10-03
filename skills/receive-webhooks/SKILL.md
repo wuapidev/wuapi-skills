@@ -5,7 +5,7 @@ description: Receive wuapi events on an HTTPS endpoint. Use when writing a webho
 
 # Receive webhooks
 
-wuapi POSTs every event as JSON to your webhook endpoints, signed with the endpoint's secret.
+wuapi POSTs every event as JSON to your webhook endpoints, signed with the endpoint's secret. No public HTTPS endpoint (local development, a desktop app, a worker behind NAT)? Use Streams instead: the `receive-streams` skill.
 
 ## Workflow
 
