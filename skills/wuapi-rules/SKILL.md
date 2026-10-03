@@ -182,7 +182,7 @@ For the habits that keep a number healthy (warming up a new number, opt-in, firs
 Events reach your code one of two ways, the same envelope on both. Choose by what the code has:
 
 - **Webhooks** when the server has a public HTTPS endpoint: wuapi POSTs each event, signed, with retries. Skill `receive-webhooks`.
-- **Streams** when it has none (local development, a desktop or CLI app, a worker behind NAT, an agent): the code opens one request to `https://stream.wuapi.dev/v1/events/stream` with the key in the `Authorization` header and wuapi sends each event as it happens. It resumes with `Last-Event-ID` for 30 minutes and may repeat an event, so deduplicate on the event `id`. The Free plan allows 3 open stream connections. A web app's `EventSource` cannot set the header: go through your backend. Skill `receive-streams`.
+- **Streams** when it has none (local development, a desktop or CLI app, a worker behind NAT, an agent): the code opens one request to `https://stream.wuapi.dev/v1/events/stream` with the key in the `Authorization` header and wuapi sends each event as it happens. It resumes with `Last-Event-ID` within 28 minutes (events are kept 30) and may repeat an event, so deduplicate on the event `id`. The Free plan allows 3 open stream connections. A web app's `EventSource` cannot set the header: go through your backend. Skill `receive-streams`.
 - **REST** for history and for catching up after a `reset` frame: `GET /v1/messages`, `GET /v1/accounts/{accountId}/chats`.
 
 Never poll for events: 2 requests every 4 seconds is 43,200 requests a day against a limit of 600 requests a minute, and an event still arrives late. `npx @wuapidev/cli events stream` prints the events live from a terminal.

@@ -84,7 +84,7 @@ In any other language, or to know what the SDK does for you, a client follows th
 
 1. Send the key in the `Authorization: Bearer $WUAPI_API_KEY` header. A key in the URL is refused with `401`. The key never goes into front-end code.
 2. Read the response as `text/event-stream`. Every stream starts with `retry: 3000`. An event is a frame with `id` (an opaque cursor), `event` (the type, such as `message.received`) and `data` (one JSON line). A line that starts with a colon is a heartbeat, sent every 15 seconds when nothing else is; it may carry an `id` too.
-3. Keep the last `id`. After a disconnect, wait the `retry` time and reconnect with `Last-Event-ID` set to it (clients that cannot set a header can pass `?cursor=<id>`). Within 30 minutes wuapi replays what you missed, then goes live.
+3. Keep the last `id`. After a disconnect, wait the `retry` time and reconnect with `Last-Event-ID` set to it (clients that cannot set a header can pass `?cursor=<id>`). Within 28 minutes wuapi replays what you missed, then goes live. Events are kept 30 minutes, but only 28 are guaranteed: past that, expect a `reset`.
 4. Deduplicate on the event id (`evt_...` inside `data`): delivery is at-least-once, and a replay can repeat an event you already handled.
 5. A frame named `reset` means the cursor is too old or unknown. Resync through REST, then carry on with the live stream.
 6. A connection without `Last-Event-ID` starts from now. Events before it are read through REST.
@@ -157,7 +157,7 @@ curl -N https://stream.wuapi.dev/v1/events/stream \
 | Topic | Rule |
 |---|---|
 | Frames | `id`, `event`, `data`; `: ping` every 15 seconds; `retry: 3000` first |
-| Resume | `Last-Event-ID` header or `cursor` query parameter; replay for 30 minutes |
+| Resume | `Last-Event-ID` header or `cursor` query parameter; replay within 28 minutes (events are kept 30, a resume near the end of that is refused with `reset`) |
 | `reset` | `event: reset` with `data: {"reason": ...}`, the reason being `cursor_expired`, `cursor_unknown` or `not_logged` (nothing was kept for that cursor). No replay follows, and the stream continues live |
 | Filters | `types` and `accounts` query parameters, at most 50 values each, repeated or comma separated. A presence type (`chat.presence_updated`, `contact.presence_updated`), `webhook.test` or an unknown type is `400` |
 | Scope | Like REST: an organization key sees every project, a project key its own; `Wuapi-Project` scopes an organization key. A project that is not yours is `404 project_not_found` |
@@ -173,4 +173,4 @@ A browser's `EventSource` cannot set the `Authorization` header, and the key mus
 ## Not on Streams
 
 - Presence events (`chat.presence_updated`, `contact.presence_updated`) are never sent.
-- No history on connect, no delivery guarantee past 30 minutes: that is REST's job.
+- No history on connect, no delivery guarantee past 28 minutes (events are kept 30): that is REST's job.
