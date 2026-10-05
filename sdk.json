@@ -1,7 +1,7 @@
 {
   "generatedBy": "wuapi-codegen. Do not edit: run `bun run codegen`.",
   "sdk": {
-    "typescript": "0.13.1",
-    "rust": "0.13.1"
+    "typescript": "0.14.0",
+    "rust": "0.14.0"
   }
 }

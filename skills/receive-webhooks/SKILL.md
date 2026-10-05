@@ -143,7 +143,7 @@ Every event has the same envelope. `data.object` is the resource in exactly the 
 | `story.reacted` | `story_viewer` | a contact reacted to a story the account posted, or changed or removed the reaction |
 | `poll.voted` | `poll_vote`: `{accountId, chatId, messageId, voterId, options, votedAt, poll}` | someone voted; `poll` is the poll message with its tally, or `null` |
 | `group.joined` | `group` | the account was added to or created a group |
-| `group.updated` | `group_change`: `{accountId, groupId, actorId, added, removed, promoted, demoted, name, description, locked, announce, changes, changedAt}` | participants, admins, name, description or settings changed; `changes` lists what |
+| `group.updated` | `group_change`: `{accountId, groupId, communityId, actorId, added, removed, promoted, demoted, linked, unlinked, name, description, locked, announce, changes, changedAt}` | participants, admins, name, description or settings changed, or a subgroup was linked to or unlinked from a community (`linked`, `unlinked`, `communityId`); `changes` lists what |
 | `group.join_requested` | `group_join_request`: `{accountId, groupId, contactId, requestedAt}` | someone asked to join a group that needs approval |
 | `group.join_request_revoked` | `group_join_request` | the request was withdrawn |
 | `chat.updated` | `chat_change`: `{accountId, chatId, change, value, messageId, mutedUntil}` | archive, pin, mute, read, delete, clear or star, from any device |

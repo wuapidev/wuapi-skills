@@ -43,14 +43,14 @@ await wuapi.messages.send({ accountId, to: group.id, text: "Welcome to the night
 | SDK | REST (under `/v1/accounts/{accountId}`) |
 |---|---|
 | `groups.list(accountId)` | `GET /groups` (list, paginated) |
-| `groups.create(accountId, { name, participants?, community? })` | `POST /groups` (201) |
+| `groups.create(accountId, { name, participants?, community?, communityId? })` | `POST /groups` (201) |
 | `groups.get(accountId, groupId)` | `GET /groups/{groupId}` |
 | `groups.update(accountId, groupId, {...})` | `PATCH /groups/{groupId}` |
 | `groups.addParticipants` / `removeParticipants` / `promoteParticipants` / `demoteParticipants` | `POST /groups/{groupId}/participants/add`, `/remove`, `/promote`, `/demote` with `{contactIds}`; one `participant_result` per contact |
 | `groups.leave(accountId, groupId)` | `POST /groups/{groupId}/leave` (204) |
 | `groups.setPicture(accountId, groupId, { url })` / `deletePicture` | `PUT` / `DELETE /groups/{groupId}/picture`; JPEG, `{url}` (HTTPS) or `{base64}`; `PUT` returns a `picture` |
 
-The group: `{object: "group", id, accountId, name, description, ownerId, community, locked, announce, participants: [{contactId, name, role}], createdAt}`, with `role` one of `member`, `admin`, `owner`. A `participant_result` is `{object, contactId, error, inviteCode}`; `error` is `null` when it worked.
+The group: `{object: "group", id, accountId, name, description, ownerId, community, communityId, default, locked, announce, participants: [{contactId, name, role}], createdAt}`, with `role` one of `member`, `admin`, `owner`. A `participant_result` is `{object, contactId, error, inviteCode}`; `error` is `null` when it worked.
 
 ## Invite links and joining
 
@@ -91,10 +91,26 @@ console.log(subgroups.length, everyone.length)
 
 REST, under `/v1/accounts/{accountId}/groups/{groupId}`: `GET` and `POST .../subgroups` (`{groupId}`), `DELETE .../subgroups/{subgroupId}`, `GET .../community-participants`.
 
+Every group says where it belongs: `communityId` is its community's id (`null` when it is in none, and on a community itself) and `default` is `true` for the community's announcement group. `groups.list` carries both, so one call is enough to show an account's groups by community:
+
+```ts
+const groups = await wuapi.groups.list(accountId).toArray()
+const communities = groups.filter((g) => g.community)
+const subgroupsOf = (communityId: string) => groups.filter((g) => g.communityId === communityId)
+console.log(communities.map((c) => [c.name, subgroupsOf(c.id).length]))
+```
+
+Create a group directly inside a community with `communityId` (not together with `community: true`, which is `400 invalid_request`; `400 not_supported`, with nothing created, for an account that cannot do it yet):
+
+```ts
+const volunteers = await wuapi.groups.create(accountId, { name: "Volunteers", participants: ["+584121234567"], communityId: "120363055500000000@g.us" })
+console.log(volunteers.communityId) // "120363055500000000@g.us"
+```
+
 ## Group events
 
 - `group.joined`: the account was added to a group or created one; `data.object` is the group.
-- `group.updated`: participants, admins, name, description or settings changed; `data.object` is a `group_change` with `added`, `removed`, `promoted`, `demoted`, `name`, `description`, `locked`, `announce` and `changes`, the list of what changed.
+- `group.updated`: participants, admins, name, description or settings changed; `data.object` is a `group_change` with `added`, `removed`, `promoted`, `demoted`, `name`, `description`, `locked`, `announce` and `changes`, the list of what changed. A subgroup linked to a community or unlinked from it arrives here too: `changes` has `subgroups_linked` or `subgroups_unlinked`, `linked` / `unlinked` are the subgroups' ids and `communityId` is their community (`groupId` itself, or the other group when WhatsApp reports the change on the subgroup).
 - `group.join_requested` / `group.join_request_revoked`: `data.object` is a `group_join_request` `{groupId, contactId, requestedAt}`.
 
 ## Group errors
