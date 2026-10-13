@@ -42,7 +42,7 @@ curl -X POST https://api.wuapi.dev/v1/messages \
 | `contacts` | 2 to 20 `{name, phone}` cards in one message |
 | `poll` | `{name, options, selectableCount?}`: 2 to 12 unique options, each up to 100 characters; `selectableCount` `0` (default) allows any number |
 | `calendarEvent` | `{name, description?, startsAt, endsAt?, location?, callType?, allowExtraGuests?}`; times are ISO 8601 |
-| `replyToMessageId` | a wuapi message id in the same chat to quote; works with every type |
+| `replyToMessageId` | a wuapi message id in the same chat to quote; works with every type. One exception, a private reply: a message someone else wrote in a group, quoted in the direct chat with its author (`to` is that message's `from`) |
 | `mentions` | contact ids, up to 256 |
 | `mentionAll` | `true` mentions every participant; groups only |
 | `forwarded` | `true` labels this new message as forwarded (content you supply); to pass on a message you already have, use `messages.forward` (see "Forwarding a message") |
