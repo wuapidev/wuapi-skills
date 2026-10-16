@@ -95,6 +95,9 @@ console.log(reachable, contacts[0]?.about, pic.url, biz.categories)
 |---|---|
 | `contacts.list(accountId, { q?, limit? })` | `GET /contacts`, a list of `contact` |
 | `contacts.get(accountId, contactId)` | `GET /contacts/{contactId}`, a `contact` |
+| `contacts.update(accountId, contactId, { savedName, firstName? })` | `PATCH /contacts/{contactId}`, `202` `contact` with `phoneSync` |
+| `contacts.saveMany(accountId, { contacts })` | `POST /contacts/batch`, up to 500 → `202` `{batchId, contacts: [{contactId, status}]}` |
+| `contacts.backfillAutoSave(accountId)` | `POST /contacts/auto-save/backfill`, `202` |
 | `contacts.check(accountId, phones)` | `POST /contacts/check` `{phones}` → list of `contact_check` `{phone, onWhatsApp, contactId, businessName}` |
 | `contacts.lookup(accountId, contactIds)` | `POST /contacts/lookup` `{contactIds}` → list of `contact` |
 | `contacts.getPicture(accountId, contactId, { preview? })` | `GET /contacts/{contactId}/picture` → `picture` `{id, url, preview}`; `contactId` may be a group id |
@@ -105,7 +108,20 @@ console.log(reachable, contacts[0]?.about, pic.url, biz.categories)
 | `contacts.getLink(accountId)` / `resetLink` | `GET /contact-link`, `POST /contact-link/reset`; the account's own contact link, `{url}` |
 | `contacts.resolveLink(accountId, { kind, code })` | `POST /links/resolve`; `kind` `contact` or `business`; `404 link_not_found` |
 
-Contact changes arrive as `contact.updated` (about text), `contact.picture_updated`, `contact.presence_updated` (subscribed contacts) and `blocklist.updated` (with `refetch: true`, read the list again).
+Contact changes arrive as `contact.updated` (about text, username, and a save on the phone that finished, with `phoneSync`), `contact.picture_updated`, `contact.presence_updated` (subscribed contacts) and `blocklist.updated` (with `refetch: true`, read the list again).
+
+### Save contacts on the phone
+
+`contacts.update` saves a contact on the linked phone, in WhatsApp and in the phone's own address book (it shows there about a minute after WhatsApp takes it). Any number with WhatsApp can be saved. It is queued, also while the account reconnects, and answers `202` with the contact: `savedName` is the new name already, and `phoneSync.status` is `pending`, then `synced` or `failed` (`error.code`: `not_on_whatsapp`, `account_offline`, `save_failed`), each announced by `contact.updated` with the whole contact. Saving the same name again changes nothing. Removing a contact is not supported (`savedName: null` → `400 not_supported`).
+
+```ts
+const contact = await wuapi.contacts.update(accountId, "+584241112233", { savedName: "Maria Gonzalez" })
+console.log(contact.phoneSync?.status) // "pending"
+await wuapi.accounts.update(accountId, { contactAutoSave: { enabled: true, nameTemplate: "{profileName} (WhatsApp)" } })
+await wuapi.contacts.backfillAutoSave(accountId) // the chats the account already has
+```
+
+`contactAutoSave` on the account saves the contacts of new direct chats automatically: `trigger` `first_inbound` (their first message, the default) or `any_chat`; `nameTemplate` with `{profileName}` and `{phone}`, `fallbackName` when the contact has no profile name. Never groups or channels, never a contact the phone already named, each contact at most once, at most 200 per account and UTC day.
 
 ```ts
 await wuapi.contacts.block(accountId, "+584241112233")
