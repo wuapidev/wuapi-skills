@@ -11,7 +11,7 @@ Three levels, the same words everywhere:
 - **Project**: one of your customers, or an environment. Its own accounts, API keys, webhook endpoints, limits and usage, isolated from every other project.
 - **Account**: a linked WhatsApp number with a name ("Sales", "Support").
 
-wuapi bills the organization, across every project, counting all its connected accounts together through graduated bands, each at its own price: $6 for your first number, $4.50 for every one after, and $3.50 from the 51st, per month. It never bills a project: you rebill your customers from the per-project usage it reports. An organization without a paid subscription is on the Free plan: 1 number, 2,000 messages and 0.5 GB of proxy traffic a month, no card, which is not enough to run a platform; upgrade before inviting customers.
+wuapi bills the organization, across every project, counting all its connected accounts together through graduated bands, each at its own price: $7 for your first number, $5.25 for every one after, and $4.10 from the 51st, per month, residential proxy included (fair use: 5 GB a month per number, pooled). It never bills a project: you rebill your customers from the per-project usage it reports. An organization without a paid subscription is on the Free plan: 1 number, 2,000 messages and 0.5 GB of proxy traffic a month, no card, which is not enough to run a platform; upgrade before inviting customers.
 
 ## Workflow: onboard a customer
 
@@ -108,7 +108,7 @@ for (const line of report.projects) {
 console.log(report.unassigned, report.totals)
 ```
 
-`accountCount` and `billableAccountCount` are current counts; `month` selects the month of `proxyBytes`, `sentMessageCount` and `receivedMessageCount`. `sentMessageCount` counts API sends WhatsApp accepted plus messages sent from the phone; `receivedMessageCount` counts contacts' messages; history imports count for neither. Organization keys only. `GET /v1/usage` is the organization's own bill for the current month (`billableAccountCount`, `accountFeeCents`, `proxyBytes`, `includedProxyBytes`, `billableProxyBytes`, `proxyFeeCents`, `totalCents`, `currency`). Every billable account includes 0.5 GB of proxy a month, pooled across the organization; `proxyFeeCents` bills only `billableProxyBytes`, the traffic past that, at $0.99 per GB.
+`accountCount` and `billableAccountCount` are current counts; `month` selects the month of `proxyBytes`, `sentMessageCount` and `receivedMessageCount`. `sentMessageCount` counts API sends WhatsApp accepted plus messages sent from the phone; `receivedMessageCount` counts contacts' messages; history imports count for neither. Organization keys only. `GET /v1/usage` is the organization's own bill for the current month (`billableAccountCount`, `accountFeeCents`, `proxyBytes`, `includedProxyBytes`, `billableProxyBytes`, `proxyFeeCents`, `totalCents`, `currency`). Proxy traffic is included up to the fair use, 5 GB a month per billable account, pooled across the organization (`includedProxyBytes`); `billableProxyBytes` and `proxyFeeCents` are 0. Only subscriptions started before 2026-10-18 keep legacy metered billing: 0.5 GB per account included, then $0.99 per GB in `proxyFeeCents`.
 
 ## Invitations: let the customer link their own number
 
