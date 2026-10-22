@@ -3,7 +3,7 @@
 [![Validate](https://github.com/wuapidev/wuapi-skills/actions/workflows/validate.yml/badge.svg)](https://github.com/wuapidev/wuapi-skills/actions/workflows/validate.yml)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Agent skills for [wuapi](https://wuapi.dev), the WhatsApp API for developers. They give a coding agent (Claude Code, Cursor, Codex and others that read `SKILL.md` files) what it needs to write correct wuapi code: one skill per task, each a workflow plus a reference, with TypeScript examples that use the real [`@wuapidev/sdk`](https://www.npmjs.com/package/@wuapidev/sdk) and curl where it helps.
+Agent skills for [wuapi](https://wuapi.dev), the WhatsApp API for developers. They give an assistant (Claude Code, Cursor, Codex, Grok Bot and others that read `SKILL.md` files) what it needs to call wuapi correctly: one skill per task, each a workflow plus a reference, with TypeScript examples that use the real [`@wuapidev/sdk`](https://www.npmjs.com/package/@wuapidev/sdk) and curl where it helps. `act-on-whatsapp` is the procedure for acting on the user's own number; the others are the reference for writing that into an app.
 
 ```sh
 npx skills add wuapidev/wuapi-skills
@@ -28,6 +28,7 @@ The plugin is updated when its version changes (`.claude-plugin/plugin.json`), a
 | Skill | Covers |
 |---|---|
 | `wuapi-rules` | Always loaded. What wuapi is and is not, auth, projects, errors, pagination, idempotency, pacing, webhook signing. |
+| `act-on-whatsapp` | Act on the user's own number: the API key, the sending account, resolving a contact or group, confirming, sending, and the endpoint map for everything else. |
 | `wuapi-cli` | Log in with `npx @wuapidev/cli login` (no key to copy), link a number and send a test from the terminal, call any API method, set up the MCP server. |
 | `link-account` | Link a number by QR or pairing code, wait for ready, pick the exit country, reconnect or log out. |
 | `send-message` | Every send type and option, replies, mentions, polls, events, edits, reactions, Status and channel posts. |
