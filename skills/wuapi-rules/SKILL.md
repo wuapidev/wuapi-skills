@@ -208,6 +208,7 @@ Every delivery carries `Wuapi-Signature: t=<unix seconds>,v1=<hex>`, where `v1` 
 
 | Skill | Use it for |
 |---|---|
+| `act-on-whatsapp` | An assistant acting on the user's own number: the key, the sending account, resolving a contact or group, confirming, sending, and where every other call lives |
 | `wuapi-cli` | Logging in without handling keys, linking a number and sending a test from the terminal, calling any API method from a shell, setting up the MCP server |
 | `link-account` | Connecting a number: QR code, pairing code, waiting for `ready`, reconnecting, logging out |
 | `send-message` | Every send type and option, replies, mentions, polls, calendar events, edits, reactions, stories (posting, reading contacts' stories, viewing, replying) and channel posts |
